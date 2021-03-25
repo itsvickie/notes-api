@@ -1,0 +1,20 @@
+{
+    "name": "vickie/notes",
+    "authors": [
+        {
+            "name": "Vickie",
+            "email": "vcamilaxs@gmail.com"
+        }
+    ],
+    "require": {
+        "sprained/validator-php": "^1.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Notes\\": "src"
+        },
+        "files": [
+            "src/config/Env.php"
+        ]
+    }
+}
