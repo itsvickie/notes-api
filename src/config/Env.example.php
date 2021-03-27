@@ -6,4 +6,5 @@ define("DB_HOST", "");
 define("DB_DATABASE", "");
 define("DB_USER", "");
 define("DB_PASSWORD", "");
-define("DB_PORT", );
+define("DB_PORT", '');
+define("JWT_TOKEN", "");

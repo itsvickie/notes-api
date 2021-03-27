@@ -4,22 +4,24 @@ namespace Notes\App\Controllers;
 
 use Notes\Database\Config;
 use Sprained\Validator;
+use Notes\App\Middlewares\Auth;
 
 class NoteController extends Config
 {
     public function register()
     {
-        $body = json_decode(file_get_contents("php://input"), true);
+        $auth = new Auth();
+        $jwt = $auth->jwt();
 
+        $body = json_decode(file_get_contents("php://input"), true);
         $validator = new Validator();
 
-        $id = $validator->required($body['id'], 'Id');
         $title = $validator->required($body['title'], 'O Título da Nota');
         $description = $body['description'];
 
         $conn = $this->connect();
         $sql = $conn->prepare("INSERT INTO note (title, description, id_user) VALUES (?, ?, ?)");
-        $sql->bind_param("ssi", $title, $description, $id);
+        $sql->bind_param("ssi", $title, $description, $jwt['id']);
 
         if($sql->execute()){
             http_response_code(201);
@@ -32,7 +34,8 @@ class NoteController extends Config
 
     public function list()
     {
-        $id_user = $_GET['id_user'];
+        $auth = new Auth();
+        $jwt = $auth->jwt();    
         $conn = $this->connect();
 
         if(isset($_GET['id_note'])){
@@ -40,30 +43,35 @@ class NoteController extends Config
             $sql->bind_param("i", $_GET['id_note']);
 
             if($sql->execute()){
+                $sql = $sql->get_result();
+                $sql = $sql->fetch_assoc();
                 http_response_code(200);
                 die(json_encode($sql));
             }
 
             http_response_code(500);
             die(json_encode(['message' => 'Nota não cadastrada!']));
-        }
+        } else {
+            $sql = $conn->prepare("SELECT id, title, description FROM note WHERE id_user = ?");
+            $sql->bind_param("i", $jwt['id']);
 
-        $sql = $conn->prepare("SELECT id, title, description FROM note WHERE id_user = ?");
-        $sql->bind_param("i", $id_user);
+            if($sql->execute()){
+                http_response_code(200);
+                $sql = $sql->get_result();
+                $sql = $sql->fetch_all(MYSQLI_ASSOC);
+                die(json_encode($sql));
+            }
 
-        if($sql->execute()){
-            http_response_code(200);
-            $sql = $sql->get_result();
-            $sql = $sql->fetch_all(MYSQLI_ASSOC);
-            die(json_encode($sql));
-        }
-
-        http_response_code(500);
-        die(json_encode(['message' => 'Usuário não encontrado!']));
+            http_response_code(500);
+            die(json_encode(['message' => 'Usuário não encontrado!']));
+        } 
     }
 
     public function update()
     {
+        $auth = new Auth();
+        $jwt = $auth->jwt();
+
         $body = json_decode(file_get_contents("php://input"), true);
     
         $id = $_GET['id'];
@@ -90,14 +98,14 @@ class NoteController extends Config
             }
     
             if($description){
-                $sql .= "description = ?";
+                $sql .= $title ? ",description = ? " : "description = ? ";
                 $param .= 's';
                 array_push($arr, $description);
             }
     
             $param .= 'i';
             array_push($arr, $id);
-    
+            
             $sql = $conn->prepare($sql . "WHERE id = ?");
             $sql->bind_param($param, ...$arr);
             
@@ -113,6 +121,9 @@ class NoteController extends Config
 
     public function delete()
     {
+        $auth = new Auth();
+        $jwt = $auth->jwt(); 
+
         $id = $_GET['id'];
 
         $conn = $this->connect();
